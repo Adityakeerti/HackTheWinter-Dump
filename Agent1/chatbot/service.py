@@ -32,9 +32,10 @@ class ChatbotService:
         )
 
         # -------------------------
-        # Vector Store (RAG)
+        # Vector Store (RAG) - Using FAISS
         # -------------------------
-        self.vector_store = ChromaVectorStore(
+        from memory.vector.faiss_store import FAISSVectorStore
+        self.vector_store = FAISSVectorStore(
             path=settings.vector_path
         )
 
