@@ -17,7 +17,7 @@ This is the current layout and which component lives where in the repository:
 ```mermaid
 ---
 config:
-  theme: neo
+  theme: forest
   themeVariables:
     primaryColor: '#334155'
     mainBkg: '#334155'
