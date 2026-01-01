@@ -35,11 +35,11 @@ Processing overview (implemented):
 
 ```mermaid
 graph TD
-    Input[Input Image/PDF] --> Pre[Preprocessing & PDF->Image]
+    Input[Input Image or PDF] --> Pre[Preprocessing and PDF conversion]
     Pre --> Enhance[Enhancement: greyscale, threshold, deskew]
     Enhance --> Layout[Layout Detection / ROI]
-    Layout --> Extract[Text Extraction (Tesseract / vision modules)]
-    Extract --> Post[Post-processing & Validation]
+    Layout --> Extract[Text Extraction: Tesseract or vision modules]
+    Extract --> Post[Post-processing and Validation]
     Post -->|high confidence| JSON[Structured JSON]
     Post -->|low confidence| Human[Flag for Human Review]
 ```
