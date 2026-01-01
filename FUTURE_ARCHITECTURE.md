@@ -19,7 +19,7 @@ Sections
 - Introduce Redis caching for frequently-read endpoints (student profile, subject lists). Use Spring Cache abstraction in Java services.
 - Add object storage (S3) for static assets and large file artifacts (marksheet images) and configure application to store `image_url` pointing to S3.
 
-3) Secrets and configuration
+🛡️ 3) Secrets and configuration
 - Replace file-based secrets with HashiCorp Vault or cloud KMS. Use dynamic DB credentials where possible.
 - Move environment-specific configuration to a centralized config store and use immutable container images.
 
