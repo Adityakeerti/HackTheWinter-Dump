@@ -15,6 +15,15 @@ This repository is a multi-service prototype for campus automation and assistant
 This is the current layout and which component lives where in the repository:
 
 ```mermaid
+---
+config:
+  theme: neo
+  themeVariables:
+    primaryColor: '#334155'
+    mainBkg: '#334155'
+    textColor: '#ffffff'
+  themeCSS: '.mindmap-node label text, .mindmap-node text { fill: #ffffff !important; }'
+---
 mindmap
   root((HackTheWinter-Dump))
     Agent1
@@ -26,7 +35,7 @@ mindmap
     backend-ocr
     backend-lib
     database
-    start_servers_bat
+    ["start_servers_bat"]
     frontend
 ```
 
