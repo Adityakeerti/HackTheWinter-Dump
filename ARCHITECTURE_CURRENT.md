@@ -91,8 +91,6 @@ graph TD
     OCR --> SQL
     LIB --> SQL
     AG --> MONGO
-```
-
 ---
 
 ## `backend-ocr` — OCR pipeline (file: `backend-ocr/main.py`)
