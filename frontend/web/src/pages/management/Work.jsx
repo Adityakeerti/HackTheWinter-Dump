@@ -12,14 +12,40 @@ import {
     GraduationCap,
     ChevronRight,
     Filter,
-    RefreshCw
+    RefreshCw,
+    Bell
 } from 'lucide-react';
 import { getAuth } from '../../utils/authStorage';
+import AdminNoticeManager from '../../components/management/AdminNoticeManager';
 
 // Use dynamic hostname for OCR backend
 const API_BASE = `http://${window.location.hostname}:8000`;
 
 const Work = () => {
+    // Get user from localStorage to check role
+    const auth = getAuth('management');
+    const adminUser = auth.user || {};
+    const userRole = adminUser.managementRole || adminUser.role || 'FACULTY';
+
+    // If ADMIN (Registrar), show notice management instead of marksheet verification
+    if (userRole === 'ADMIN') {
+        return <AdminNoticeManager />;
+    }
+
+    // For FACULTY role, show "no work tasks" message
+    if (userRole === 'FACULTY') {
+        return (
+            <div className="max-w-[1400px] mx-auto p-6 md:p-8">
+                <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
+                    <Bell className="mx-auto mb-4 text-slate-300" size={64} />
+                    <h3 className="text-2xl font-semibold text-slate-700 mb-2">No Pending Work Tasks</h3>
+                    <p className="text-slate-400">Check back later for assignments or visit the Groups section to view notices.</p>
+                </div>
+            </div>
+        );
+    }
+
+    // MODERATOR and others continue with marksheet verification below
     const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history'
     const [pendingMarksheets, setPendingMarksheets] = useState([]);
     const [verifiedMarksheets, setVerifiedMarksheets] = useState([]);
@@ -29,9 +55,6 @@ const Work = () => {
     const [adminComment, setAdminComment] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
 
-    // Get admin user from localStorage
-    const auth = getAuth('management');
-    const adminUser = auth.user || {};
 
     // Fetch pending marksheets
     const fetchPendingMarksheets = async () => {

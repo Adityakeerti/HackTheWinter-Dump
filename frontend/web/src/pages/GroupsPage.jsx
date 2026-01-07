@@ -8,16 +8,20 @@ import {
     Plus,
     Menu,
     ArrowLeft,
-    X
+    X,
+    MessageSquare,
+    Bell
 } from 'lucide-react';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardUrl, getCurrentUser } from '../utils/authStorage';
+import NoticesPanel from '../components/NoticesPanel';
 
-// Use dynamic hostname for network access
-const CHAT_API_BASE = `http://${window.location.hostname}:8083`;
-const WS_URL = `http://${window.location.hostname}:8083/ws`;
+// Smart protocol detection: Use proxy on HTTPS, direct on HTTP
+const isHttps = window.location.protocol === 'https:';
+const CHAT_API_BASE = isHttps ? '' : `http://${window.location.hostname}:8083`;
+const WS_URL = isHttps ? null : `http://${window.location.hostname}:8083/ws`; // WebSocket only works on HTTP
 
 const GroupsPage = () => {
     const navigate = useNavigate();
@@ -26,6 +30,7 @@ const GroupsPage = () => {
 
     // UI State
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [activeView, setActiveView] = useState('chat'); // 'chat' | 'notices'
 
     // Chat State
     const [activeGroup, setActiveGroup] = useState(null); // No default group selected
@@ -108,6 +113,12 @@ const GroupsPage = () => {
     useEffect(() => {
         const userId = user.userId || user.id;
         if (!userId) return;
+
+        // WebSocket doesn't work on HTTPS without SSL backend - skip if null
+        if (!WS_URL) {
+            console.warn('[Groups] WebSocket disabled on HTTPS. Real-time chat unavailable. Access via HTTP for live updates.');
+            return;
+        }
 
         const socket = new SockJS(WS_URL);
         const client = Stomp.over(socket);
@@ -270,22 +281,73 @@ const GroupsPage = () => {
                     <button onClick={() => setShowCreateModal(true)} className="text-blue-600 hover:bg-blue-50 p-1 rounded-full"><Plus size={20} /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-                    {groups.map(g => (
-                        <div
-                            key={g.id}
-                            onClick={() => setActiveGroup(g)}
-                            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${activeGroup?.id === g.id ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-50'}`}
-                        >
-                            <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
-                                <Hash size={20} />
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    {/* WORK SECTION */}
+                    <div className="p-3 border-b border-gray-100">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2 flex items-center gap-2">
+                            <Hash size={12} /> Work
+                        </h3>
+                        {groups.filter(g => g.type === 'WORK' || g.name === 'Default College' || g.name === 'Master Group').map(g => (
+                            <div
+                                key={g.id}
+                                onClick={() => { setActiveGroup(g); setActiveView('chat'); }}
+                                className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${activeGroup?.id === g.id && activeView === 'chat' ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-50'}`}
+                            >
+                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                                    #
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-gray-900 text-sm truncate">{g.name}</h4>
+                                </div>
                             </div>
-                            <div>
-                                <h4 className="font-semibold text-gray-900 text-sm">{g.name}</h4>
-                                <p className="text-xs text-gray-400">{g.type}</p>
+                        ))}
+                        {groups.filter(g => g.type === 'WORK' || g.name === 'Default College' || g.name === 'Master Group').length === 0 && (
+                            <p className="text-xs text-gray-400 px-2 py-2">No work groups</p>
+                        )}
+                    </div>
+
+                    {/* PERSONAL SECTION */}
+                    <div className="p-3 border-b border-gray-100">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2 flex items-center gap-2">
+                            <Users size={12} /> Personal
+                        </h3>
+                        {groups.filter(g => g.type !== 'WORK' && g.name !== 'Default College' && g.name !== 'Master Group').map(g => (
+                            <div
+                                key={g.id}
+                                onClick={() => { setActiveGroup(g); setActiveView('chat'); }}
+                                className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${activeGroup?.id === g.id && activeView === 'chat' ? 'bg-purple-50 border border-purple-100' : 'hover:bg-gray-50'}`}
+                            >
+                                <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-sm">
+                                    {g.name?.[0] || '#'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-gray-900 text-sm truncate">{g.name}</h4>
+                                </div>
+                            </div>
+                        ))}
+                        {groups.filter(g => g.type !== 'WORK' && g.name !== 'Default College' && g.name !== 'Master Group').length === 0 && (
+                            <p className="text-xs text-gray-400 px-2 py-2">No personal groups</p>
+                        )}
+                    </div>
+
+                    {/* NOTICES SECTION */}
+                    <div className="p-3">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2 mb-2 flex items-center gap-2">
+                            <Bell size={12} /> Notices
+                        </h3>
+                        <div
+                            onClick={() => { setActiveGroup(null); setActiveView('notices'); }}
+                            className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${activeView === 'notices' && !activeGroup ? 'bg-amber-50 border border-amber-200' : 'hover:bg-gray-50'}`}
+                        >
+                            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
+                                <Bell size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-gray-900 text-sm">All Notices</h4>
+                                <p className="text-xs text-gray-400">View announcements</p>
                             </div>
                         </div>
-                    ))}
+                    </div>
                 </div>
             </div>
 
@@ -305,7 +367,24 @@ const GroupsPage = () => {
                             </div>
                         </div>
 
+                        {/* View Toggle Tabs */}
                         <div className="flex items-center gap-2">
+                            <div className="flex bg-gray-100 rounded-lg p-1 mr-2">
+                                <button
+                                    onClick={() => setActiveView('chat')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeView === 'chat' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <MessageSquare size={14} />
+                                    Chat
+                                </button>
+                                <button
+                                    onClick={() => setActiveView('notices')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeView === 'notices' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    <Bell size={14} />
+                                    Notices
+                                </button>
+                            </div>
                             {/* Leave Group Button */}
                             <button
                                 onClick={async () => {
@@ -332,40 +411,61 @@ const GroupsPage = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                        {messages.map((msg, idx) => {
-                            const myId = user.userId || user.id;
-                            const isMe = (msg.sender?.id === myId) || (msg.senderId === myId);
-                            const senderName = msg.sender?.fullName || 'Unknown';
+                    {/* Conditional View: Chat or Notices */}
+                    {activeView === 'notices' ? (
+                        <NoticesPanel groupId={activeGroup.id} user={user} />
+                    ) : (
+                        <>
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                {messages.map((msg, idx) => {
+                                    const myId = user.userId || user.id;
+                                    const isMe = (msg.sender?.id === myId) || (msg.senderId === myId);
+                                    const senderName = msg.sender?.fullName || 'Unknown';
 
-                            return (
-                                <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[70%]`}>
-                                        {!isMe && <span className="text-[10px] text-gray-500 ml-1 mb-1">{senderName}</span>}
-                                        <div className={`px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'}`}>
-                                            {msg.content}
+                                    return (
+                                        <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[70%]`}>
+                                                {!isMe && <span className="text-[10px] text-gray-500 ml-1 mb-1">{senderName}</span>}
+                                                <div className={`px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'}`}>
+                                                    {msg.content}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        <div ref={messagesEndRef} />
-                    </div>
+                                    );
+                                })}
+                                <div ref={messagesEndRef} />
+                            </div>
 
-                    <div className="p-4 bg-white border-t border-gray-200">
-                        <form onSubmit={sendMessage} className="flex gap-2">
-                            <input
-                                type="text"
-                                value={inputMessage}
-                                onChange={(e) => setInputMessage(e.target.value)}
-                                placeholder={`Message #${activeGroup.name}...`}
-                                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                            <button type="submit" className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700">
-                                <Send size={20} />
-                            </button>
-                        </form>
+                            <div className="p-4 bg-white border-t border-gray-200">
+                                <form onSubmit={sendMessage} className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={inputMessage}
+                                        onChange={(e) => setInputMessage(e.target.value)}
+                                        placeholder={`Message #${activeGroup.name}...`}
+                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                    <button type="submit" className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700">
+                                        <Send size={20} />
+                                    </button>
+                                </form>
+                            </div>
+                        </>
+                    )}
+                </div>
+            ) : activeView === 'notices' ? (
+                /* Notices View (when selected from sidebar) */
+                <div className="flex-1 flex flex-col bg-slate-50">
+                    <div className="h-16 bg-white border-b border-gray-200 flex items-center px-6 shadow-sm">
+                        <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold">
+                            <Bell size={20} />
+                        </div>
+                        <div className="ml-3">
+                            <h2 className="font-bold text-gray-800">All Notices</h2>
+                            <p className="text-xs text-gray-400">Announcements from administration</p>
+                        </div>
                     </div>
+                    <NoticesPanel groupId={null} user={user} />
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col items-center justify-center bg-gray-50">
@@ -373,7 +473,7 @@ const GroupsPage = () => {
                         <Users size={48} />
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Select a Group</h2>
-                    <p className="text-gray-500 max-w-sm text-center">Click on a group icon to start chatting with your classmates.</p>
+                    <p className="text-gray-500 max-w-sm text-center">Click on a group to start chatting or view notices.</p>
                 </div>
             )}
 

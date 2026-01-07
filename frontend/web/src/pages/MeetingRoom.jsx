@@ -4,9 +4,10 @@ import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
 import { Send, Download, MessageSquare, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getCurrentUser, getAuth } from '../utils/authStorage';
 
-// Use dynamic hostname for network access
-const MEETING_WS_URL = `http://${window.location.hostname}:8082/ws`;
+// Use proxy path for WebSocket to avoid mixed content issues
+const MEETING_WS_URL = '/ws';
 
 const MeetingRoom = () => {
     const { roomId } = useParams();
@@ -14,10 +15,17 @@ const MeetingRoom = () => {
     const videoContainerRef = useRef(null);
     const zpRef = useRef(null); // Ref to store Zego instance
 
-    // User Info - Improved Parsing
-    const user = JSON.parse(localStorage.getItem('user')) || {};
-    const userName = user.fullName || user.username || user.name || 'Guest User';
-    const userId = user.id ? String(user.id) : String(Math.floor(Math.random() * 10000));
+    // Get user from proper auth context (student or management)
+    const studentAuth = getAuth('student');
+    const managementAuth = getAuth('management');
+    const user = studentAuth.user || managementAuth.user || {};
+
+    const userName = user.fullName || user.name || user.username || user.email?.split('@')[0] || 'Guest';
+    // CRITICAL: userId must NEVER be empty for Zego authentication
+    const rawUserId = user.id || user.userId || user.studentId || user.managerId;
+    const userId = rawUserId ? String(rawUserId) : 'user_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+
+    console.log('👤 User Info:', { userName, userId, user });
 
     // Chat State
     const [messages, setMessages] = useState([]);
@@ -28,63 +36,84 @@ const MeetingRoom = () => {
     const messagesEndRef = useRef(null);
 
     // --- Zego Cloud Integration ---
+    const isInitializing = useRef(false); // Prevent double init in React Strict Mode
+
     useEffect(() => {
         const initMeeting = async () => {
-            if (!videoContainerRef.current) return;
+            // Prevent double initialization
+            if (isInitializing.current || !videoContainerRef.current) return;
+            isInitializing.current = true;
 
-            const appID = 972494244;
-            const serverSecret = "a59edad55cafa44bd1265ba606bdd435";
-            const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-                appID,
-                serverSecret,
-                roomId,
-                userId,
-                userName
-            );
+            try {
+                const appID = 1836935326;
+                const serverSecret = "1c9cfa38377a2f2eee4eff73add02f52";
 
-            const zp = ZegoUIKitPrebuilt.create(kitToken);
-            zpRef.current = zp; // Store instance
+                console.log('🎬 Initializing Zego Meeting:', { roomId, userId, userName });
 
-            zp.joinRoom({
-                container: videoContainerRef.current,
-                sharedLinks: [
-                    {
-                        name: 'Copy Link',
-                        url: window.location.protocol + '//' + window.location.host + '/meeting/room/' + roomId
+                const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+                    appID,
+                    serverSecret,
+                    roomId,
+                    userId,
+                    userName
+                );
+
+                console.log('✅ Token generated successfully');
+
+                const zp = ZegoUIKitPrebuilt.create(kitToken);
+                zpRef.current = zp; // Store instance
+
+                zp.joinRoom({
+                    container: videoContainerRef.current,
+                    sharedLinks: [
+                        {
+                            name: 'Copy Link',
+                            url: window.location.protocol + '//' + window.location.host + '/meeting/room/' + roomId
+                        },
+                        {
+                            name: 'Meeting Code',
+                            url: roomId
+                        },
+                    ],
+                    scenario: {
+                        mode: ZegoUIKitPrebuilt.GroupCall,
                     },
-                    {
-                        name: 'Meeting Code',
-                        url: roomId
+                    turnOnMicrophoneWhenJoining: false,
+                    turnOnCameraWhenJoining: false,
+                    showMyCameraToggleButton: true,
+                    showMyMicrophoneToggleButton: true,
+                    showAudioVideoSettingsButton: true,
+                    showScreenSharingButton: true,
+                    showTextChat: false, // Usage Custom Chat
+                    showUserList: true,
+                    maxUsers: 50,
+                    layout: "Auto",
+                    showLayoutButton: true,
+                    onJoinRoom: () => {
+                        console.log('✅ Successfully joined Zego room');
+                        setHasJoinedMeeting(true); // Trigger chat connection
+                        setIsChatOpen(true); // Auto-open chat on join (optional, user asked to hide in preview)
                     },
-                ],
-                scenario: {
-                    mode: ZegoUIKitPrebuilt.GroupCall,
-                },
-                turnOnMicrophoneWhenJoining: false,
-                turnOnCameraWhenJoining: false,
-                showMyCameraToggleButton: true,
-                showMyMicrophoneToggleButton: true,
-                showAudioVideoSettingsButton: true,
-                showScreenSharingButton: true,
-                showTextChat: false, // Usage Custom Chat
-                showUserList: true,
-                maxUsers: 50,
-                layout: "Auto",
-                showLayoutButton: true,
-                onJoinRoom: () => {
-                    setHasJoinedMeeting(true); // Trigger chat connection
-                    setIsChatOpen(true); // Auto-open chat on join (optional, user asked to hide in preview)
-                },
-                onLeaveRoom: () => {
-                    navigate('/meeting');
-                },
-            });
+                    onLeaveRoom: () => {
+                        console.log('👋 Left Zego room');
+                        navigate('/meeting');
+                    },
+                    onError: (error) => {
+                        console.error('❌ Zego Error:', error);
+                        alert(`Meeting Error: ${error.msg || 'Failed to connect. Please check your Zego credentials.'}`);
+                    }
+                });
+            } catch (error) {
+                console.error('❌ Failed to initialize Zego:', error);
+                alert('Failed to initialize meeting room. Please check console for details.');
+            }
         };
 
         initMeeting();
 
         // Cleanup function to fix "White Page" bug on re-entry
         return () => {
+            isInitializing.current = false; // Reset flag for next mount
             if (zpRef.current) {
                 zpRef.current.destroy();
                 zpRef.current = null;

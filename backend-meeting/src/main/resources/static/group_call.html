@@ -92,8 +92,8 @@
         const userName = params['username'] || "User" + userID;
 
         // NOTE: In a production app, Tokens should be generated on the server side to keep appID and secret secure.
-        const appID = 972494244;
-        const serverSecret = "a59edad55cafa44bd1265ba606bdd435";
+        const appID = 1836935326;
+        const serverSecret = "1c9cfa38377a2f2eee4eff73add02f52";
         const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(appID, serverSecret, roomID, userID, userName);
 
         const zp = ZegoUIKitPrebuilt.create(kitToken);

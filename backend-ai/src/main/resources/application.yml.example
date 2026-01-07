@@ -25,11 +25,11 @@ spring:
   security:
     user:
       name: admin
-      password: admin
+      password: YOUR_ADMIN_PASSWORD_HERE
 
 # JWT Configuration
 jwt:
-  secret: YOUR_JWT_SECRET_HERE
+  secret: YOUR_JWT_SECRET_HERE_MIN_256_BITS
   expiration: 86400000 # 24 hours in milliseconds
 
 # Logging
@@ -38,4 +38,3 @@ logging:
     com.campus: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
-

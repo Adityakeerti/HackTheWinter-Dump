@@ -117,8 +117,14 @@ logs/
 # Sensitive configuration files
 **/application.yml
 !**/application.yml.example
+**/application.properties
+!**/application.properties.example
 backend-ai/src/main/resources/application.yml
 !backend-ai/src/main/resources/application.yml.example
+
+# Agent1 environment
+Agent1/.env
+!Agent1/.env.example
 
 # Assets (if too large, uncomment)
 # Assets/

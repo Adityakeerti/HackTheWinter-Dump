@@ -18,9 +18,10 @@ import Stomp from 'stompjs';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardUrl, getCurrentUser } from '../utils/authStorage';
 
-// Use dynamic hostname for network access
-const CHAT_API_BASE = `http://${window.location.hostname}:8083`;
-const WS_URL = `http://${window.location.hostname}:8083/ws`;
+// Smart protocol detection: Use proxy on HTTPS, direct on HTTP
+const isHttps = window.location.protocol === 'https:';
+const CHAT_API_BASE = isHttps ? '' : `http://${window.location.hostname}:8083`;
+const WS_URL = isHttps ? null : `http://${window.location.hostname}:8083/ws`; // WebSocket only works on HTTP
 
 // ... (Imports assumed stable)
 
@@ -105,6 +106,12 @@ const MessagesPage = () => {
     useEffect(() => {
         const userId = user.userId || user.id;
         if (!userId) return;
+
+        // WebSocket doesn't work on HTTPS without SSL backend - skip if null
+        if (!WS_URL) {
+            console.warn('[Messages] WebSocket disabled on HTTPS. Real-time chat unavailable. Messages still work via polling.');
+            return;
+        }
 
         const socket = new SockJS(WS_URL);
         const client = Stomp.over(socket);
